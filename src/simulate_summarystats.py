@@ -731,7 +731,7 @@ def sim_msas(msas_per_model, models, num_threads, training_data=True, num_taxa=(
         lengths = np.zeros([len(msa_list)], dtype=np.int64)
         taxa = np.zeros([len(msa_list)], dtype=np.int64)
 
-        for count, (label, seed, alpha, seq_len, sec_seed, taxa, conv_msa, tstv_msa, pairwise_msa, freq_msa) in enumerate(msa_list):
+        for count, (label, seed, alpha, seq_len, sec_seed, taxa_count, conv_msa, tstv_msa, pairwise_msa, freq_msa) in enumerate(msa_list):
             conv_data[count, :, :] = conv_msa.astype(np.int8)
             tstv_data[count, :, :] = tstv_msa
             pairwise_data[count, :, :] = pairwise_msa
@@ -743,7 +743,7 @@ def sim_msas(msas_per_model, models, num_threads, training_data=True, num_taxa=(
             ev_model_strings.append(label)
 
             lengths[count] = seq_len
-            taxa[count] = taxa
+            taxa[count] = taxa_count
 
         labels = np.eye(12, dtype=np.int8)[labels.reshape(-1)]
 
