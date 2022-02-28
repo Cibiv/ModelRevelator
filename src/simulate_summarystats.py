@@ -550,8 +550,7 @@ def generate_msa(t):
 
         # the while loop serves to draw new parameters and simulate a new MSA in the rare case simulation failes with lanfear params
         while True:
-            #param_start, param_stop = mp[nr_taxa] * 10000, (mp[nr_taxa] + 1) * 10000
-            param_start, param_stop = mp[nr_taxa] * 1000, (mp[nr_taxa] + 1) * 1000
+            param_start, param_stop = mp[nr_taxa] * 10000, (mp[nr_taxa] + 1) * 10000
             idx = np.random.randint(param_start, param_stop, size=1, dtype=np.int)[0]
             # print(idx)
             params = trees[idx]
