@@ -1,0 +1,8 @@
+numpy
+pandas
+astroML
+tensorflow>=2.4.0; sys_platform == 'Linux' | sys_platform == 'win32'
+tensorflow-macos>=2.4.0; sys_platform == 'darwin'
+onnxruntime
+scipy
+
