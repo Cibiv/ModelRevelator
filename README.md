@@ -10,8 +10,28 @@ We show that ModelRevelator performs comparably with likelihood-based methods ov
 
 ## ModelRevelator GitHub Repository
 Here, we provide 
-* A simulation script to simulate training and test data sets.
+* Branch lengths, rate and frequency parameters estimated from the Lanfear Dataset.
+* Random trees for 8, 16, 64 and 128 taxa.
+* A simulation script to simulate training and test datasets.
 * The Tensorflow implementations for training of NNalphafind and NNmodelfind.
 * The trained NNmodelfind and NNalphafind neural networks in ONNX format.
+* A Python command line tool to infer the model and alpha parameter of your MSA of choice (ModelRevelator CLI).
+* Four alignments for testing purposes (example_alignments). File names contain ground truth.
 
+## ModelRevelator CLI
+ModelRevelator CLI is a Python script which integrates NNmodelfind and NNalphafind estimates, 
+performed either on single alignments or batches of alignment files. The alignment files need to be in phylip format (.phy).
+
+Commandline options:  
+```
+    -a OR "--alignments": Alignment file(s) to process. In phylip format (.phy). 
+            You can use * or ? placeholders in your path- and filenames to process 
+            entire directories containing alignments.
+    -r OR "--results_filename": File name you want your results to be stored in. 
+            Currently returns a .csv file with all results. Defaults to "modelrevelator_output.csv".
+```
+Example:  
+```
+    python modelrevelator_cli.py -a /home/my_user/cool_msa.phy -r my_results.csv 
+```
 

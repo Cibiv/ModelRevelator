@@ -33,7 +33,7 @@ assert os.getenv('TRAIN_DATA_DIR'), 'TRAIN_DATA_PATH not set! This is where trai
 
 seq_gen_path = os.getenv('SEQ_GEN_PATH')
 sim_params_path = os.getenv('SIM_PARAMS_DIR')
-trees_df = pd.read_csv(os.path.join(sim_params_path, 'trees.tsv'))
+trees_df = pd.read_csv(os.path.join(sim_params_path, 'trees.csv.gz'), compression='gzip')
 sim_target_dir = os.getenv('SIM_DATA_TARGET_DIR')  # path for raw MSA files
 train_data_path = os.getenv('TRAIN_DATA_DIR')
 test_data_path = os.getenv('TEST_DATA_DIR')
@@ -153,8 +153,8 @@ nucleotide_float_map = {
     'T': 3
 }
 
-lanfear_params = pd.read_csv('./parameters/param-table-alpha-GTR-lanfear-data-1843-raw.tsv', sep='\t')
-lanfear_branchlen = pd.read_csv('./parameters/branchlen-table-alpha-GTR-lanfear-data-1843-raw.tsv', sep='\t')
+lanfear_params = pd.read_csv(os.path.join(sim_params_path, 'parameters_lanfear.tsv.gz'), compression='gzip', sep='\t')
+lanfear_branchlen = pd.read_csv(os.path.join(sim_params_path, 'branchlen_lanfear.tsv.gz'), compression='gzip', sep='\t')
 
 # collect the empirical distributions for all parameters and branch lengths in a dict
 lanfear_eds = dict()
@@ -521,7 +521,7 @@ def process_msa_frequencies(lines):
 
 def generate_msa(t):
     """
-    The worker function for multithreaed MSA generation and preprocessing
+    The worker function for multi-threaded MSA generation and preprocessing
     :param t: A tuple containing all required parameters:
         model: Model string
         num_msas: Number of MSAs to generate
@@ -531,8 +531,8 @@ def generate_msa(t):
         nr_taxa: The number of taxa which should be in the MSA
     :return: A List of tuples (<Evolutionary model string>, <pre-processed MSA numpy array>)
     """
-    tmp = []
-    model, num_msas, save_msa, potential_alphas, seq_len, nr_taxa = t
+    # tmp = []
+    model, save_msa, potential_alphas, seq_len, nr_taxa = t
 
     np.random.seed(int.from_bytes(os.urandom(4), byteorder='little'))
 
@@ -540,83 +540,84 @@ def generate_msa(t):
     mp = {8: 0, 16: 1, 32: 2, 64: 3, 128: 4}
 
     # print(model, num_msas)
-    for x in range(num_msas):
-        alpha = 0
-        np.random.shuffle(potential_alphas)
+    # for x in range(num_msas):
+    alpha = 0
+    # np.random.shuffle(potential_alphas)
 
-        if model[-2:] == '+G':
-            # list of potential alphas has been shuffled, so first element can be taken als the alpha parameter
-            alpha = potential_alphas[0]
+    if model[-2:] == '+G':
+        # list of potential alphas has been shuffled, so first element can be taken als the alpha parameter
+        alpha = potential_alphas
 
-        # the while loop serves to draw new parameters and simulate a new MSA in the rare case simulation failes with lanfear params
-        while True:
-            param_start, param_stop = mp[nr_taxa] * 10000, (mp[nr_taxa] + 1) * 10000
-            idx = np.random.randint(param_start, param_stop, size=1, dtype=np.int)[0]
-            # print(idx)
-            params = trees[idx]
-            tree = redo_tree(params['treeNewick'], seq_len)
-    
-            start_time = time.time()
-            rates_freq = {}
-            for k, v in lanfear_eds.items():
-                rates_freq.update({k: v.rvs(1)[0]})
-    
-            cmd = (seq_gen_path + models[model]).format(**rates_freq, seq_len=seq_len, alpha=alpha) + ' <<< "{}"'.format(tree)
-            # print(cmd.split('/')[-1])
-    
-            # Call seq-gen, read in generated MSA.
-            with subprocess.Popen([cmd],
-                                  shell=True,
-                                  stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE,
-                                  ) as proc:
-                lines = proc.stdout.readlines()
-                if len(lines) - 1 != nr_taxa:
-                    print(nr_taxa, tree)
-                    print(proc.stderr.readlines())  # can be used to print seq-gen console output.
-                    continue
+    # the while loop serves to draw new parameters and simulate a new MSA in the rare case simulation failes with lanfear params
+    while True:
+        param_start, param_stop = mp[nr_taxa] * 10000, (mp[nr_taxa] + 1) * 10000
+        idx = np.random.randint(param_start, param_stop, size=1, dtype=np.int)[0]
+        # print(idx)
+        params = trees[idx]
+        tree = redo_tree(params['treeNewick'], seq_len)
 
-                # generate a secondary seed
-                fn_rand_salt = np.random.randint(0, 99999, size=1, dtype=int)[0]
-    
-                # make sure that alpha parameter value gets added to filename
-                alpha_str = ''
-                if alpha > 0:
-                    alpha_str = '_alpha{}_'.format(alpha)
-    
-                # Save the MSA to a file if save_msa flag is set.
-                if save_msa:
-    
-                    filename = '{seed}_{nr_taxa}Taxa_{model}_{alpha}_{seq_len}_{fn_rand_salt}.phy'\
-                        .format(seed=params['seed'],
-                                nr_taxa=nr_taxa, model=model,
-                                alpha=alpha_str,
-                                seq_len=seq_len,
-                                fn_rand_salt=fn_rand_salt)
-    
-                    path = os.path.join(sim_target_dir, str(seq_len) + 'bp', model)
-                    full_path = os.path.join(path, filename)
-                    print(full_path)
-    
-                    os.makedirs(path, exist_ok=True)
-                    with open(full_path, 'w') as f:
-                        f.writelines([x.decode() for x in lines])
-    
-                    save_tree = True
-                    if save_tree:
-                        treefile = filename.split('.phy')[0] + '.tree'
-                        with open(os.path.join(path, treefile), 'w') as f:
-                            f.writelines([tree])
-            # get out of the while loop if sucessfully reaching end
-            break
-        
-        msa_conv,  taxa, msa_length = process_msa_conv(lines)
+        start_time = time.time()
+        rates_freq = {}
+        for k, v in lanfear_eds.items():
+            rates_freq.update({k: v.rvs(1)[0]})
 
-        # process alignment, append tuple of model string and alignment to tmp list.
-        tmp.append((model, params['seed'], alpha_str.strip('_'), seq_len, fn_rand_salt, nr_taxa, msa_conv, process_msa_tstv(lines), process_msa_pairwise(lines), process_msa_frequencies(lines)))
+        cmd = (seq_gen_path + models[model]).format(**rates_freq, seq_len=seq_len, alpha=alpha) + ' <<< "{}"'.format(tree)
+        # print(cmd.split('/')[-1])
 
-        if benchmark:
-            print('duration raw alignment creation:', (time.time() - start_time) / 60)
+        # Call seq-gen, read in generated MSA.
+        with subprocess.Popen([cmd],
+                              shell=True,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
+                              ) as proc:
+            lines = proc.stdout.readlines()
+            if len(lines) - 1 != nr_taxa:
+                print(cmd)
+                print(nr_taxa, tree)
+                print(proc.stderr.readlines())  # can be used to print seq-gen console output.
+                continue
+
+            # generate a secondary seed
+            fn_rand_salt = np.random.randint(0, 99999, size=1, dtype=int)[0]
+
+            # make sure that alpha parameter value gets added to filename
+            alpha_str = ''
+            if alpha > 0:
+                alpha_str = '_alpha{}_'.format(alpha)
+
+            # Save the MSA to a file if save_msa flag is set.
+            if save_msa:
+
+                filename = '{seed}_{nr_taxa}Taxa_{model}_{alpha}_{seq_len}_{fn_rand_salt}.phy'\
+                    .format(seed=params['seed'],
+                            nr_taxa=nr_taxa, model=model,
+                            alpha=alpha_str,
+                            seq_len=seq_len,
+                            fn_rand_salt=fn_rand_salt)
+
+                path = os.path.join(sim_target_dir, str(seq_len) + 'bp', model)
+                full_path = os.path.join(path, filename)
+                print(full_path)
+
+                os.makedirs(path, exist_ok=True)
+                with open(full_path, 'w') as f:
+                    f.writelines([x.decode() for x in lines])
+
+                save_tree = True
+                if save_tree:
+                    treefile = filename.split('.phy')[0] + '.tree'
+                    with open(os.path.join(path, treefile), 'w') as f:
+                        f.writelines([tree])
+        # get out of the while loop if sucessfully reaching end
+        break
+
+    msa_conv,  taxa, msa_length = process_msa_conv(lines)
+
+    # process alignment, append tuple of model string and alignment to tmp list.
+    tmp = (model, params['seed'], alpha_str.strip('_'), seq_len, fn_rand_salt, nr_taxa, msa_conv, process_msa_tstv(lines), process_msa_pairwise(lines), process_msa_frequencies(lines))
+
+    if benchmark:
+        print('duration raw alignment creation:', (time.time() - start_time) / 60)
 
     return tmp
 
@@ -674,12 +675,14 @@ def _float_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
 
 
-def sim_msas(msas_per_model, models, num_threads, training_data=True, num_taxa=(8,),
+def sim_msas(msas_per_model, models, num_threads, training_data=True, taxa=(8,),
              alphas=[0.01, 0.05, 0.1, 0.5, 1, 2, 3, 5], model_int_map=model_int_map, seq_len=1000, return_seeds=False,
-             data_dir=train_data_path, save_msa=False, tfrecord_file_prefix='msa_data_{}'):
+             data_dir=train_data_path, save_msa=False, tfrecord_file_prefix='msa_data_{}', examples_per_tfr_file=500):
     """ A function which simulates Multiple Sequence Aligments, in a multi-threaded fashion. Important: the total number
-    of MSAs simulated is msas_per_model * len(models) * len(num_taxa)
+    of MSAs simulated is msas_per_model * len(models) * len(taxa)
     :param msas_per_model: How many MSAs should be generated per model in the models parameter.
+    Equal numbers will be created for each taxa and alphas parameter.
+    Also, a minimum number of MSAs will be created, determined by len(alphas) * len(taxa).
     :type msas_per_model: int
     :param models: A list of model names, specified in the models dict or model_int_map dict above.
     :type: models: list of str
@@ -688,33 +691,39 @@ def sim_msas(msas_per_model, models, num_threads, training_data=True, num_taxa=(
     :param training_data: Whether training data are being simulated and thus these should be written to a .tfrecords
     file.
     :param training_data: bool
-    :param num_taxa: A list specifying the number of taxa for an MSA to be simulated. Taxa must match parameter file.
-    :type num_taxa: iterable of int
+    :param taxa: A list specifying the number of taxa for an MSA to be simulated. Taxa must match parameter file.
+    :type taxa: iterable of int
+    :param model_int_map: A dictionary which maps model string representations to integer representations
+    :type model_int_map: dict
     :return: None
     """
 
     start_time = time.time()
-
     print(model_int_map)
 
-    tasks = math.ceil(msas_per_model / num_threads)
+    alphas_per_model = math.ceil(msas_per_model / (len(alphas) * len(taxa))) * alphas
 
-    param = [(x, tasks, save_msa, alphas, seq_len) for x in (models * num_threads)]
-    param = [(*x, y) for x in param for y in num_taxa]
-    random.shuffle(param)
-    # print(param)
+    work_packages = [(model, save_msa, alpha, seq_len, t) for model in models for t in taxa
+                     for alpha in alphas_per_model]
+    required_file_count = math.ceil(len(work_packages) / examples_per_tfr_file)
 
-    required_file_count = math.ceil(len(models) * tasks * num_threads / 10000)
-    param_sets_per_file = math.ceil(len(param) / required_file_count)
+    print("Work package size:", len(work_packages))
+    print("Files to be generated:", required_file_count)
+
+    random.shuffle(work_packages)
+    print(work_packages[:50])
+
+    # required_file_count = math.ceil(len(models) * tasks * num_threads / 10000)
+    param_sets_per_file = math.ceil(len(work_packages) / required_file_count)
 
     for f in range(required_file_count):
-        sub = param[f * param_sets_per_file:(f + 1) * param_sets_per_file]
-        print('Generating MSAs file #', f, 'of', required_file_count)
+        sub = work_packages[f * param_sets_per_file:(f + 1) * param_sets_per_file]
+        print('Generating tfrecord file #', f + 1, 'of', required_file_count)
 
         with Pool(num_threads) as p:
-            test = p.map(generate_msa, sub)
+            test = p.imap_unordered(generate_msa, sub, 5)
 
-        msa_list = [x for y in test for x in y]
+            msa_list = [y for y in test]
         random.shuffle(msa_list)
 
         tstv_data = np.zeros([len(msa_list), 40, 250, 14], dtype=np.float16)
@@ -724,7 +733,7 @@ def sim_msas(msas_per_model, models, num_threads, training_data=True, num_taxa=(
         labels = np.zeros([len(msa_list)], dtype=np.int8)
         seeds = np.zeros([len(msa_list)], dtype=np.int64)
         sec_seeds = np.zeros([len(msa_list)], dtype=np.int64)
-        alphas = np.zeros([len(msa_list)], dtype=np.float)
+        alphas = np.zeros([len(msa_list)], dtype=np.float32)
         ev_model_strings = []
 
         lengths = np.zeros([len(msa_list)], dtype=np.int64)
@@ -755,7 +764,7 @@ def sim_msas(msas_per_model, models, num_threads, training_data=True, num_taxa=(
             # location to save the TFRecords file
             train_filename = os.path.join(data_dir, tfrecord_file_prefix + '_{}'.format(f) + '.tfrecords')
             # open the TFRecords file
-            writer = tf.python_io.TFRecordWriter(train_filename)
+            writer = tf.io.TFRecordWriter(train_filename)
             for i in range(len(conv_data)):
                 # print how many images are saved every 1000 images
                 if not i % 1000:
@@ -853,7 +862,7 @@ def load_msas(filenames, num_threads, create_tfrecord=True, data_dir=train_data_
 
             train_filename = data_dir + '{}_{}.tfrecords'.format(tfrecord_file_prefix, f)  # address to save the TFRecords file
             # open the TFRecords file
-            writer = tf.python_io.TFRecordWriter(train_filename)
+            writer = tf.io.TFRecordWriter(train_filename)
             for i in range(len(conv_data)):
                 # print how many images are saved every 1000 images
                 if not i % 1000:
@@ -894,8 +903,8 @@ def main():
     alphas = [0.001, 0.01, 0.05, 0.1, 0.3,  0.5, 0.7,  *list(range(1, 11))]
 
     # simulation example for 1kbp MSAs
-    sim_msas(5000, ev_models, 64, save_msa=False, alphas=alphas, num_taxa=(8, 16, 64, 128), seq_len=1000,  tfrecord_file_prefix='train_msas_1K', data_dir='./train_data_dir/', model_int_map=model_int_map)
-    sim_msas(250, ev_models, 64, save_msa=False, alphas=alphas, num_taxa=(8, 16, 64, 128), seq_len=1000,  tfrecord_file_prefix='test_msas_1K', data_dir='./test_data_dir/', model_int_map=model_int_map)
+    sim_msas(20, ev_models, 10, save_msa=False, alphas=alphas, taxa=(8, 16, 64, 128), seq_len=1000, tfrecord_file_prefix='train_msas_1K', data_dir='./train_data_dir/', model_int_map=model_int_map)
+    # sim_msas(250, ev_models, 64, save_msa=False, alphas=alphas, num_taxa=(8, 16, 64, 128), seq_len=1000,  tfrecord_file_prefix='test_msas_1K', data_dir='./test_data_dir/', model_int_map=model_int_map)
 
     print('duration:', time.time() - start)
 
