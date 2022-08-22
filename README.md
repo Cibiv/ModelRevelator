@@ -18,6 +18,16 @@ Here, we provide
 * A Python command line tool to infer the model and alpha parameter of your MSA of choice (ModelRevelator CLI).
 * Four alignments for testing purposes (example_alignments). File names contain ground truth.
 
+## ModelRevelator Installation
+```bash
+    git clone https://github.com/Cibiv/ModelRevelator
+    
+    cd ModelRevelator
+    
+    pip install -r requirements.txt
+```
+
+
 ## ModelRevelator CLI
 ModelRevelator CLI is a Python script which integrates NNmodelfind and NNalphafind estimates, 
 performed either on single alignments or batches of alignment files. The alignment files need to be in phylip format (.phy).
