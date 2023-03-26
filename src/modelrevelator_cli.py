@@ -277,13 +277,12 @@ for count, msa_file in enumerate(msa_files):
                 if l.startswith(b'>'):
                     if len(sub_seq) > 0:
                         all_lines.append(''.join(sub_seq))
-                    # print(''.join(sub_seq))
                     sub_seq = []
                 else:
                     sub_seq.append(l.decode().strip().upper())
 
             raw_msa = np.array(all_lines)
-            print(raw_msa)
+
         proc_model_msa = process_msa_pairwise(raw_msa)
         # print('pairwise prepro duration', time.time() - start)
 
