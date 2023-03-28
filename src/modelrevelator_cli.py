@@ -12,7 +12,7 @@ from scipy.special import softmax
 import argparse
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-a", "--alignments", help="Alignment file(s) to process. In phylip format (.phy). You can use * or ? placeholders in your path- and filenames to process entire directories containing alignments.")
+parser.add_argument("-a", "--alignments", help="Alignment file(s) to process. In phylip or fasta format (.phy or .fasta). You can use * or ? placeholders in your path- and filenames to process entire directories containing alignments.")
 parser.add_argument("-o", "--output_format", help="Output format: csv", default='csv')
 parser.add_argument("-r", "--results_filename", help="File name you want your results to be stored in", default='modelrevelator_output.csv')
 

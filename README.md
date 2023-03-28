@@ -34,7 +34,7 @@ performed either on single alignments or batches of alignment files. The alignme
 
 Commandline options:  
 ```
-    -a OR "--alignments": Alignment file(s) to process. In phylip format (.phy). 
+    -a OR "--alignments": Alignment file(s) to process. In phylip or fasta format (.phy or .fasta). 
             You can use * or ? placeholders in your path- and filenames to process 
             entire directories containing alignments.
     -r OR "--results_filename": File name you want your results to be stored in. 
